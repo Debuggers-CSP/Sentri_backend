@@ -44,6 +44,7 @@ from model.post import Post, init_posts
 from model.microblog import MicroBlog, Topic, initMicroblogs
 from hacks.jokes import initJokes 
 # from model.announcement import Announcement ##temporary revert
+from machinelearning.api.titanic_api import titanic_api
 
 # server only Views
 
@@ -80,7 +81,7 @@ app.register_blueprint(data_export_import_api)  # Register the data export/impor
 app.register_blueprint(joke_api)  # Register the joke API blueprint
 app.register_blueprint(post_api)  # Register the social media post API
 # app.register_blueprint(announcement_api) ##temporary revert
-
+app.register_blueprint(titanic_api)
 # Jokes file initialization
 with app.app_context():
     initJokes()
@@ -318,6 +319,7 @@ def generate_data():
     initMicroblogs()
     initPersonas()
     initPersonaUsers()
+    initTitanic()
 
 # Register the custom command group with the Flask application
 app.cli.add_command(custom_cli)
