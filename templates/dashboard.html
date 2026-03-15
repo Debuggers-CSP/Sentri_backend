@@ -81,21 +81,52 @@
     </main>
 
 {% if triage %}
-<div class="mb-6 p-6 rounded-2xl shadow-lg border-2 {% if triage.severity == 'EMERGENCY' %}bg-red-50 border-red-500 animate-pulse{% else %}bg-green-50 border-green-200{% endif %}">
-    <h4 class="text-xl font-bold {% if triage.severity == 'EMERGENCY' %}text-red-700{% else %}text-[#2d4f1e]{% endif %} flex items-center">
-        {% if triage.severity == 'EMERGENCY' %}⚠️ EMERGENCY ALERT{% else %}🌿 Recommended Support Paths{% endif %}
-    </h4>
-    
-    <div class="mt-4 space-y-3">
-        {% for path in triage.paths %}
-        <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
-            <p class="font-bold text-slate-800">{{ path.name }}</p>
-            <p class="text-xs text-slate-500">{{ path.note }}</p>
-            <a href="{{ path.url }}" target="_blank" class="text-xs text-blue-600 underline mt-2 inline-block">Learn about this program at PRC →</a>
+    {% if triage.severity == 'EMERGENCY' %}
+        <!-- FULL SCREEN EMERGENCY MODE -->
+        <div class="mb-6 p-8 rounded-3xl bg-red-600 text-white shadow-2xl animate-pulse border-4 border-white text-center">
+            <h2 class="text-5xl font-black mb-6 uppercase tracking-tighter">⚠️ CALL 911</h2>
+            <p class="text-xl mb-8 font-bold italic">{{ triage.ai_response.msg }}</p>
+            
+            <div class="flex flex-col space-y-4">
+                <a href="tel:911" class="w-full py-6 bg-white text-red-600 rounded-2xl text-4xl font-black shadow-lg hover:scale-105 transition transform">
+                    📞 DIAL 911 NOW
+                </a>
+                <a href="{{ triage.ai_response.link }}" class="w-full py-4 bg-red-800 text-white rounded-2xl text-xl font-bold border border-red-400">
+                    {{ triage.ai_response.label }}
+                </a>
+            </div>
         </div>
-        {% endfor %}
-    </div>
-</div>
+    {% else %}
+        <!-- STANDARD TRIAGE -->
+        <div class="mb-6 p-6 rounded-2xl bg-white border-2 border-green-100 shadow-xl">
+            <!-- Mandatory AI Response & Mandatory Link -->
+            <div class="flex items-start space-x-4 mb-6">
+                <div class="bg-green-100 p-3 rounded-full text-3xl">🤖</div>
+                <div class="flex-1">
+                    <h4 class="text-xs font-black text-green-700 uppercase tracking-widest">Navigator Response</h4>
+                    <p class="text-slate-700 text-lg italic leading-relaxed font-medium mb-3">"{{ triage.ai_response.msg }}"</p>
+                    <a href="{{ triage.ai_response.link }}" target="_blank" class="inline-block px-5 py-2 bg-slate-100 text-[#2d4f1e] rounded-lg text-xs font-bold hover:bg-slate-200 transition border border-slate-200">
+                        🔗 {{ triage.ai_response.label }}
+                    </a>
+                </div>
+            </div>
+
+            <!-- Specific Program Links (If multi-addiction found) -->
+            {% if triage.paths %}
+            <div class="mt-4 pt-4 border-t border-slate-50">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Specific PRC Support Pages:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {% for path in triage.paths %}
+                    <a href="{{ path.url }}" target="_blank" class="px-4 py-3 bg-[#2d4f1e] text-white rounded-xl text-xs font-bold hover:bg-black transition text-center shadow-sm">
+                        View {{ path.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    {% endif %}
 {% endif %}
+
 </body>
 </html>
