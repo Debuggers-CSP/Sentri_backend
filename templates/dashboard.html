@@ -52,33 +52,36 @@
         </div>
     </header>
 
-    <main class="max-w-6xl mx-auto -mt-12 px-8 grid grid-cols-1 lg:grid-cols-3 gap-10 relative z-20">
+<main class="max-w-6xl mx-auto -mt-12 px-8 grid grid-cols-1 lg:grid-cols-3 gap-10 relative z-20">
         
-        <!-- LEFT: SOS TRIAGE -->
+        <!-- LEFT: SOS TRIAGE (2 Columns wide) -->
         <div class="lg:col-span-2 space-y-8">
             
             {% if triage %}
                 {% if triage.severity == 'EMERGENCY' %}
                     <div class="bg-red-600 p-10 rounded-[3rem] shadow-2xl border-8 border-white animate-pulse text-center text-white">
                         <h2 class="text-5xl font-black italic mb-4 uppercase tracking-tighter">🚨 EMERGENCY SIGNAL</h2>
-                        <p class="text-xl font-bold mb-8 opacity-90">{{ triage.ai_message }}</p>
+                        <p class="text-xl font-bold mb-8 opacity-90">{{ triage.ai_response.msg }}</p>
                         <div class="grid grid-cols-1 gap-4">
-                            <a href="tel:911" class="py-6 bg-white text-red-600 rounded-3xl text-4xl font-black hover:scale-105 transition">CALL 911 NOW</a>
-                            <a href="https://powayrecoverycenter.org/contact-us/" class="py-4 bg-red-900 text-white rounded-2xl font-bold border border-red-400">View PRC Contact Info</a>
+                            <a href="tel:911" class="py-6 bg-white text-red-600 rounded-3xl text-4xl font-black hover:scale-105 transition shadow-2xl">CALL 911 NOW</a>
+                            <a href="{{ triage.ai_response.link }}" class="py-4 bg-red-900 text-white rounded-2xl font-bold border border-red-400">View PRC Emergency Info</a>
                         </div>
                     </div>
                 {% else %}
                     <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-stone-200">
-                        <div class="flex items-center space-x-4 mb-6">
+                        <div class="flex items-start space-x-4 mb-6">
                             <div class="bg-green-100 p-4 rounded-full text-3xl">🧭</div>
-                            <div>
+                            <div class="flex-1">
                                 <h4 class="text-xs font-black text-stone-400 uppercase tracking-widest">Trail Intelligence</h4>
-                                <p class="text-xl font-bold text-stone-800 italic">"{{ triage.ai_message }}"</p>
+                                <p class="text-xl font-bold text-stone-800 italic">"{{ triage.ai_response.msg }}"</p>
+                                <a href="{{ triage.ai_response.link }}" target="_blank" class="mt-3 inline-block px-4 py-2 bg-stone-100 text-stone-600 rounded-lg text-xs font-bold border border-stone-200 hover:bg-stone-200 transition">
+                                    🔗 {{ triage.ai_response.label }}
+                                </a>
                             </div>
                         </div>
                         
                         {% if triage.paths %}
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 border-t pt-6">
                             {% for path in triage.paths %}
                             <a href="{{ path.url }}" target="_blank" class="p-5 bg-[#2d4f1e] text-white rounded-2xl flex justify-between items-center group hover:bg-black transition-all">
                                 <span class="font-bold text-sm">PRC: {{ path.name }}</span>
@@ -93,27 +96,38 @@
 
             <!-- INPUT BOX -->
             <div class="bg-white rounded-[3rem] shadow-xl p-12 border border-stone-200 relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-8 opacity-5 text-8xl font-black">POWAY</div>
-                <h3 class="text-3xl font-black text-stone-800 tracking-tighter mb-2">Share Your Thoughts with PRC</h3>
-                <p class="text-stone-400 font-medium mb-8">Type your current thoughts. We'll map the best PRC trail for you.</p>
-                
+                <h3 class="text-3xl font-black text-stone-800 tracking-tighter mb-2">Share Your Thoughts with the PRC</h3>
+                <p class="text-stone-400 font-medium mb-8">How are you feeling today? We'll map the best PRC trail for you.</p>
                 <form method="POST">
-                    <textarea name="user_text" rows="5" class="w-full p-8 rounded-[2rem] bg-stone-50 border-2 border-stone-100 focus:border-[#2d4f1e] focus:bg-white outline-none transition-all text-xl font-medium shadow-inner" placeholder="How are you feelingtoday?"></textarea>
+                    <textarea name="user_text" rows="5" class="w-full p-8 rounded-[2rem] bg-stone-50 border-2 border-stone-100 focus:border-[#2d4f1e] focus:bg-white outline-none transition-all text-xl font-medium" placeholder="Describe your situation..."></textarea>
                     <button class="mt-6 w-full bg-[#2d4f1e] py-6 rounded-2xl text-white font-black text-xl shadow-lg hover:shadow-green-900/40 hover:-translate-y-1 transition-all">SEND</button>
                 </form>
             </div>
         </div>
 
-        <!-- RIGHT: TRAIL LOGS -->
-        <div class="bg-white rounded-[3rem] shadow-xl p-10 border border-stone-200 h-fit">
-            <h3 class="text-xs font-black text-stone-400 uppercase tracking-widest mb-8 border-b border-stone-100 pb-4">The Trail Log</h3>
-            <div class="space-y-6 max-h-[600px] overflow-y-auto pr-4">
-                {% for log in history %}
-                <div class="relative pl-6 border-l-2 {% if log.sentiment_score < -0.4 %}border-red-400 bg-red-50/50{% elif log.sentiment_score > 0.4 %}border-green-500 bg-green-50/50{% else %}border-stone-200 bg-stone-50{% endif %} p-4 rounded-r-2xl">
-                    <p class="text-[10px] font-black text-stone-400 mb-2">{{ log.timestamp }}</p>
-                    <p class="text-sm font-bold text-stone-700 leading-tight">{{ log.user_text }}</p>
+        <!-- RIGHT: TRAIL LOGS (1 Column wide) -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-[3rem] shadow-xl p-8 border border-stone-200 h-full max-h-[850px] flex flex-col">
+                <h3 class="text-xs font-black text-stone-400 uppercase tracking-widest mb-6 border-b border-stone-100 pb-4">The Trail Log</h3>
+                <div class="space-y-4 overflow-y-auto pr-2 flex-1">
+                    {% if history %}
+                        {% for log in history %}
+                        <div class="relative pl-6 border-l-8 
+                            {% if log.sentiment_score <= -0.8 %} border-red-600 bg-red-50 
+                            {% elif log.sentiment_score < 0 %} border-orange-400 bg-orange-50 
+                            {% else %} border-green-500 bg-green-50 {% endif %} 
+                            p-4 rounded-r-2xl shadow-sm">
+                            <p class="text-[9px] font-black text-stone-400 mb-2 uppercase">{{ log.timestamp }}</p>
+                            <p class="text-sm font-bold text-stone-700 leading-tight">{{ log.user_text }}</p>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-20 text-stone-300">
+                            <p class="text-4xl mb-4">🥾</p>
+                            <p class="text-xs uppercase font-black">No logs recorded yet.</p>
+                        </div>
+                    {% endif %}
                 </div>
-                {% endfor %}
             </div>
         </div>
     </main>

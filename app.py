@@ -15,78 +15,64 @@ DB_PATH = os.path.join(BASE_DIR, 'prc_crisis.db')
 
 
 def get_empathetic_response(sentiment, severity):
-    # Every response level now has a 'msg' and a 'link'
     responses = {
         "EMERGENCY": {
-            "msg": "🚨 CRITICAL: We have detected a medical or safety emergency. Immediate intervention is required.",
+            "msg": "🚨 CRITICAL: This is a medical emergency. Please stay calm and use the dial button below.",
             "link": "https://powayrecoverycenter.org/contact-us/",
             "label": "View PRC Emergency Info"
         },
-        "FRUSTRATED": {
-            "msg": "😤 It sounds like you're feeling a lot of pressure or anger right now. You don't have to fight this alone.",
-            "link": "https://powayrecoverycenter.org/", # Mandatory Homepage link for general frustration
+        "DISTRESSED": {
+            "msg": "😤 It sounds like you're struggling right now. You don't have to carry this weight alone.",
+            "link": "https://powayrecoverycenter.org/",
             "label": "Return to PRC Home"
         },
-        "SAD": {
-            "msg": "😔 I can feel the weight in your words. PRC is a community built on healing through connection.",
-            "link": "https://powayrecoverycenter.org/about/",
-            "label": "Learn About Our Community"
-        },
         "STABLE": {
-            "msg": "🌿 Thank you for checking in. Consistency is the key to a long-term journey. Explore our resources to stay strong.",
+            "msg": "🌿 Thank you for checking in. Your honesty keeps your path clear.",
             "link": "https://powayrecoverycenter.org/resources/",
             "label": "Explore More Resources"
         }
     }
     
+    # Selection Logic
     if severity == "EMERGENCY":
         return responses["EMERGENCY"]
-    elif sentiment < -0.4:
-        return responses["FRUSTRATED"]
     elif sentiment < 0:
-        return responses["SAD"]
+        return responses["DISTRESSED"]
     else:
         return responses["STABLE"]
+
     
 def sos_triage_engine(user_input, program_data):
     analysis = TextBlob(user_input)
-    sentiment = analysis.sentiment.polarity
+    sentiment = analysis.sentiment.polarity 
     
     recommendations = []
     severity = "Stable"
     
-    # 1. EMERGENCY KEYWORD DETECTION
+    # 1. EMERGENCY OVERRIDE
     critical_keywords = ["breathe", "chest pain", "overdose", "die", "kill", "hurt", "suicide", "bleeding", "hospital"]
-    if sentiment < -0.8 or any(word in user_input.lower() for word in critical_keywords):
+    
+    if any(word in user_input.lower() for word in critical_keywords):
         severity = "EMERGENCY"
-        # Emergency doesn't need multi-path; it needs 911 (Handled in UI)
-        res = get_empathetic_response(sentiment, severity)
-        return {"severity": severity, "sentiment": sentiment, "paths": [], "ai_response": res}
+        sentiment = -1.0 # Force -1.0 for the Red Sidebar
+    elif sentiment < 0:
+        severity = "DISTRESSED"
 
-    # 2. MULTI-PROGRAM MAPPING (The List logic)
+    # 2. MULTI-PROGRAM MAPPING
     for prog in program_data:
         keywords = prog['keywords'].split(", ")
         if any(word in user_input.lower() for word in keywords):
-            recommendations.append({
-                "name": prog['name'],
-                "url": prog['url'],
-                "note": f"Direct link to {prog['name'].split(' ')[0]} support."
-            })
+            recommendations.append({"name": prog['name'], "url": prog['url']})
 
-    # 3. SET SEVERITY FOR NON-EMERGENCY
-    if sentiment < 0:
-        severity = "Distressed"
-    
-    # 4. GET THE MANDATORY AI RESPONSE & LINK
-    res = get_empathetic_response(sentiment, severity)
+    # 3. GET AI RESPONSE (Fixed: Uses 'severity' correctly)
+    ai_res = get_empathetic_response(sentiment, severity)
 
     return {
         "severity": severity, 
         "sentiment": sentiment, 
         "paths": recommendations, 
-        "ai_response": res
+        "ai_response": ai_res
     }
-
 
 def get_db_connection():
     # This forces Flask to use the DB in your actual folder
@@ -155,54 +141,35 @@ def dashboard():
         if user_text:
             prog_rows = db.execute('SELECT * FROM prc_programs').fetchall()
             programs_list = [dict(row) for row in prog_rows]
+            
+            # RUN THE ENGINE
             triage_result = sos_triage_engine(user_text, programs_list)
             
+            # IMPORTANT: Save the TRIAGE sentiment, not the raw textblob sentiment
             db.execute('INSERT INTO logs (user_id, user_text, sentiment_score) VALUES (?, ?, ?)',
                        (session['user_id'], user_text, triage_result['sentiment']))
             db.commit()
 
-    # --- POWAY THEMED GAMIFICATION: THE EXPEDITION ---
+    # Get History
     history = db.execute('SELECT * FROM logs WHERE user_id = ? ORDER BY timestamp DESC', 
                          (session['user_id'],)).fetchall()
     
+    # Gamification Logic (Stay same)
     total_logs = len(history)
-    
-    # 1. Calculate Elevation (Progress up the mountain)
-    # 0 logs = Lake Poway Trailhead | 15 logs = Potato Chip Rock Summit
-    elevation = min(total_logs * 200, 2800) 
-    
-    if total_logs == 0:
-        location = "Lake Poway Trailhead"
-    elif total_logs < 5:
-        location = "Blue Sky Reserve"
-    elif total_logs < 12:
-        location = "Mount Woodson Switchbacks"
-    else:
-        location = "Potato Chip Rock Summit"
+    elevation = min(total_logs * 200, 2800)
+    location = "Lake Poway Trailhead"
+    if total_logs > 12: location = "Potato Chip Rock Summit"
+    elif total_logs > 5: location = "Mount Woodson Switchbacks"
 
-    # 2. Trail Visibility (ML Sentiment Analysis)
-    if total_logs > 0:
-        avg_sentiment = sum([log['sentiment_score'] for log in history[:3]]) / len(history[:3])
+    if triage_result and triage_result['severity'] == "EMERGENCY":
+        trail_env = {"status": "Critical Storm", "color": "from-red-900 to-black", "icon": "⚡", "msg": "SEEK HELP IMMEDIATELY."}
+    elif triage_result and triage_result['sentiment'] < 0:
+        trail_env = {"status": "Rugged Terrain", "color": "from-stone-700 to-stone-900", "icon": "🌫️", "msg": "Visibility is low. Stay on the marked path."}
     else:
-        avg_sentiment = 0
-
-    if avg_sentiment < -0.4:
-        trail_env = {"status": "Rugged Storm", "color": "from-stone-700 to-stone-900", "icon": "⛈️", "msg": "The trail is steep and the chaparral is thick. Take it one step at a time."}
-    elif avg_sentiment < 0:
-        trail_env = {"status": "Morning Mist", "color": "from-[#8b7355] to-stone-500", "icon": "🌫️", "msg": "Visibility is low on the switchbacks. Lean on your PRC community."}
-    else:
-        trail_env = {"status": "Clear Skies", "color": "from-[#4a7c44] to-[#2d4f1e]", "icon": "☀️", "msg": "The 'City in the Country' is beautiful today. Your path is clear."}
+        trail_env = {"status": "Clear Skies", "color": "from-[#4a7c44] to-[#2d4f1e]", "icon": "☀️", "msg": "Your path is clear today."}
 
     db.close()
-    
-    return render_template('dashboard.html', 
-                           username=session['username'], 
-                           history=history, 
-                           triage=triage_result,
-                           trail=trail_env,
-                           elevation=elevation,
-                           location=location)
-
+    return render_template('dashboard.html', username=session['username'], history=history, triage=triage_result, trail=trail_env, elevation=elevation, location=location)
 @app.route('/logout')
 def logout():
     session.clear()
