@@ -34,6 +34,7 @@ from model.user import User, initUsers
 from model.user import Section;
 from model.github import GitHubUser
 from model.feedback import Feedback
+from model.sobriety_models import SobrietyProfile, DailyCheckin, UserReward
 from api.analytics import get_date_range
 # from api.grade_api import grade_api
 from api.study import study_api
@@ -46,6 +47,7 @@ from model.microblog import MicroBlog, Topic, initMicroblogs
 from hacks.jokes import initJokes 
 # from model.announcement import Announcement ##temporary revert
 from machinelearning.api.titanic_api import titanic_api
+from model.sobriety_models import initSobrietyTables
 
 # server only Views
 
@@ -321,7 +323,7 @@ def generate_data():
     initMicroblogs()
     initPersonas()
     initPersonaUsers()
-    initTitanic()
+    initSobrietyTables()
 
 # Register the custom command group with the Flask application
 app.cli.add_command(custom_cli)

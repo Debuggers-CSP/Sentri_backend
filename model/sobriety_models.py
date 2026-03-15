@@ -1,16 +1,16 @@
 from datetime import datetime
 from __init__ import db
-
+from __init__ import app
 
 class SobrietyProfile(db.Model):
     __tablename__ = "sobriety_profiles"
-
+    __bind_key__ = "sobriety"
     id = db.Column(db.Integer, primary_key=True)
 
     # Link to existing users table
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True)
+    user_id = db.Column(db.Integer, nullable=False, unique=True)
 
-    sobriety_start_date = db.Column(db.Date, nullable=False)
+    sobriety_start_date = db.Column(db.Date, nullable=True)
 
     current_streak_days = db.Column(db.Integer, default=0, nullable=False)
     longest_streak_days = db.Column(db.Integer, default=0, nullable=False)
@@ -31,13 +31,7 @@ class SobrietyProfile(db.Model):
         nullable=False
     )
 
-    # Relationship to existing User model
-    user = db.relationship(
-        "User",
-        backref=db.backref("sobriety_profile", uselist=False, cascade="all, delete-orphan")
-    )
-
-    def __init__(self, user_id, sobriety_start_date):
+    def __init__(self, user_id, sobriety_start_date=None):
         self.user_id = user_id
         self.sobriety_start_date = sobriety_start_date
 
@@ -60,11 +54,11 @@ class SobrietyProfile(db.Model):
 
 class DailyCheckin(db.Model):
     __tablename__ = "daily_checkins"
-
+    __bind_key__ = "sobriety"
     id = db.Column(db.Integer, primary_key=True)
 
     # Link to existing users table
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    user_id = db.Column(db.Integer, nullable=False)
 
     date = db.Column(db.Date, nullable=False)
 
@@ -83,12 +77,6 @@ class DailyCheckin(db.Model):
     points_earned = db.Column(db.Integer, default=0, nullable=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-
-    # Relationship to existing User model
-    user = db.relationship(
-        "User",
-        backref=db.backref("daily_checkins", lazy=True, cascade="all, delete-orphan")
-    )
 
     def __init__(
         self,
@@ -139,11 +127,11 @@ class DailyCheckin(db.Model):
 
 class UserReward(db.Model):
     __tablename__ = "user_rewards"
-
+    __bind_key__ = "sobriety"
     id = db.Column(db.Integer, primary_key=True)
 
     # Link to existing users table
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    user_id = db.Column(db.Integer, nullable=False)
 
     reward_name = db.Column(db.String(100), nullable=False)
     points_cost = db.Column(db.Integer, nullable=False)
@@ -151,12 +139,6 @@ class UserReward(db.Model):
 
     redeemed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-
-    # Relationship to existing User model
-    user = db.relationship(
-        "User",
-        backref=db.backref("user_rewards", lazy=True, cascade="all, delete-orphan")
-    )
 
     def __init__(self, user_id, reward_name, points_cost, status="redeemed"):
         self.user_id = user_id
@@ -174,3 +156,7 @@ class UserReward(db.Model):
             "redeemed_at": self.redeemed_at.isoformat() if self.redeemed_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
+
+def initSobrietyTables():
+    with app.app_context():
+        db.create_all()
