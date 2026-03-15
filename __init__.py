@@ -84,30 +84,42 @@ app.config['JWT_TOKEN_NAME'] = JWT_TOKEN_NAME
 # Database settings
 IS_PRODUCTION = os.environ.get('IS_PRODUCTION') or None
 dbName = 'user_management'
+sobrietyDbName = 'sobriety_tracker'
+
 DB_ENDPOINT = os.environ.get('DB_ENDPOINT') or None
 DB_USERNAME = os.environ.get('DB_USERNAME') or None
 DB_PASSWORD = os.environ.get('DB_PASSWORD') or None
+
 if DB_ENDPOINT and DB_USERNAME and DB_PASSWORD:
-   # Production - Use MySQL
-   DB_PORT = '3306'
-   DB_NAME = dbName
-   dbString = f'mysql+pymysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_ENDPOINT}:{DB_PORT}'
-   dbURI =  dbString + '/' + dbName
-   backupURI = None  # MySQL backup would require a different approach
+    # Production - Use MySQL
+    DB_PORT = '3306'
+
+    main_db_uri = f'mysql+pymysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_ENDPOINT}:{DB_PORT}/{dbName}'
+    sobriety_db_uri = f'mysql+pymysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_ENDPOINT}:{DB_PORT}/{sobrietyDbName}'
+
+    backupURI = None
 else:
-   # Development - Use SQLite
-   dbString = 'sqlite:///volumes/'
-   dbURI = dbString + dbName + '.db'
-   backupURI = dbString + dbName + '_bak.db'
-# Set database configuration in Flask app
+    # Development - Use SQLite
+    dbString = 'sqlite:///volumes/'
+    main_db_uri = dbString + dbName + '.db'
+    sobriety_db_uri = dbString + sobrietyDbName + '.db'
+    backupURI = dbString + dbName + '_bak.db'
+
 app.config['DB_ENDPOINT'] = DB_ENDPOINT
 app.config['DB_USERNAME'] = DB_USERNAME
 app.config['DB_PASSWORD'] = DB_PASSWORD
+
 app.config['SQLALCHEMY_DATABASE_NAME'] = dbName
-app.config['SQLALCHEMY_DATABASE_STRING'] = dbString
-app.config['SQLALCHEMY_DATABASE_URI'] = dbURI
+app.config['SQLALCHEMY_DATABASE_STRING'] = 'sqlite:///volumes/' if not (DB_ENDPOINT and DB_USERNAME and DB_PASSWORD) else None
+app.config['SQLALCHEMY_DATABASE_URI'] = main_db_uri
 app.config['SQLALCHEMY_BACKUP_URI'] = backupURI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Add bind for sobriety database
+app.config['SQLALCHEMY_BINDS'] = {
+    'sobriety': sobriety_db_uri
+}
+
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
