@@ -155,20 +155,53 @@ def dashboard():
         if user_text:
             prog_rows = db.execute('SELECT * FROM prc_programs').fetchall()
             programs_list = [dict(row) for row in prog_rows]
-            
-            # RUN THE FULL ENGINE
             triage_result = sos_triage_engine(user_text, programs_list)
             
-            # Save to history with the calculated sentiment
             db.execute('INSERT INTO logs (user_id, user_text, sentiment_score) VALUES (?, ?, ?)',
                        (session['user_id'], user_text, triage_result['sentiment']))
             db.commit()
 
+    # --- POWAY THEMED GAMIFICATION: THE EXPEDITION ---
     history = db.execute('SELECT * FROM logs WHERE user_id = ? ORDER BY timestamp DESC', 
                          (session['user_id'],)).fetchall()
+    
+    total_logs = len(history)
+    
+    # 1. Calculate Elevation (Progress up the mountain)
+    # 0 logs = Lake Poway Trailhead | 15 logs = Potato Chip Rock Summit
+    elevation = min(total_logs * 200, 2800) 
+    
+    if total_logs == 0:
+        location = "Lake Poway Trailhead"
+    elif total_logs < 5:
+        location = "Blue Sky Reserve"
+    elif total_logs < 12:
+        location = "Mount Woodson Switchbacks"
+    else:
+        location = "Potato Chip Rock Summit"
+
+    # 2. Trail Visibility (ML Sentiment Analysis)
+    if total_logs > 0:
+        avg_sentiment = sum([log['sentiment_score'] for log in history[:3]]) / len(history[:3])
+    else:
+        avg_sentiment = 0
+
+    if avg_sentiment < -0.4:
+        trail_env = {"status": "Rugged Storm", "color": "from-stone-700 to-stone-900", "icon": "⛈️", "msg": "The trail is steep and the chaparral is thick. Take it one step at a time."}
+    elif avg_sentiment < 0:
+        trail_env = {"status": "Morning Mist", "color": "from-[#8b7355] to-stone-500", "icon": "🌫️", "msg": "Visibility is low on the switchbacks. Lean on your PRC community."}
+    else:
+        trail_env = {"status": "Clear Skies", "color": "from-[#4a7c44] to-[#2d4f1e]", "icon": "☀️", "msg": "The 'City in the Country' is beautiful today. Your path is clear."}
+
     db.close()
     
-    return render_template('dashboard.html', username=session['username'], history=history, triage=triage_result)
+    return render_template('dashboard.html', 
+                           username=session['username'], 
+                           history=history, 
+                           triage=triage_result,
+                           trail=trail_env,
+                           elevation=elevation,
+                           location=location)
 
 @app.route('/logout')
 def logout():
