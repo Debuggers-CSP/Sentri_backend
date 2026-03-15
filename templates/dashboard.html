@@ -80,5 +80,22 @@
 
     </main>
 
+{% if triage %}
+<div class="mb-6 p-6 rounded-2xl shadow-lg border-2 {% if triage.severity == 'EMERGENCY' %}bg-red-50 border-red-500 animate-pulse{% else %}bg-green-50 border-green-200{% endif %}">
+    <h4 class="text-xl font-bold {% if triage.severity == 'EMERGENCY' %}text-red-700{% else %}text-[#2d4f1e]{% endif %} flex items-center">
+        {% if triage.severity == 'EMERGENCY' %}⚠️ EMERGENCY ALERT{% else %}🌿 Recommended Support Paths{% endif %}
+    </h4>
+    
+    <div class="mt-4 space-y-3">
+        {% for path in triage.paths %}
+        <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+            <p class="font-bold text-slate-800">{{ path.name }}</p>
+            <p class="text-xs text-slate-500">{{ path.note }}</p>
+            <a href="{{ path.url }}" target="_blank" class="text-xs text-blue-600 underline mt-2 inline-block">Learn about this program at PRC →</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 </body>
 </html>
