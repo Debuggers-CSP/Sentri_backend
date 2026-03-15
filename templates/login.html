@@ -1,42 +1,43 @@
-{% extends "layouts/base.html" %}
-{% set project = "Login" %}
-
-{% block body %}
-    <!-- Start of body content specific to page -->
-    <div class="px-5 py-5 mx-auto">
-        <div class="container py-4">
-            <header class="pb-3 mb-4 border-bottom border-primary text-light">
-                <span class="fs-4">Login Page</span>
-            </header>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PRC SOS - Member Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-stone-50 flex items-center justify-center h-screen">
+    <div class="bg-white p-10 rounded-xl shadow-2xl w-full max-w-md border-t-8 border-[#2d4f1e]">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-[#2d4f1e]">Member Login</h1>
+            <p class="text-slate-500 mt-2">Access your secure SOS Dashboard</p>
         </div>
-    
-        <div class="container py-4 text-light bg-primary">
-    
-            <div class="container bg-secondary py-4">
-                <div class="p-5 mb-4 bg-light text-dark rounded-3">
-                    <form name="f" action="{{ url_for('login') }}" method="POST">
-                        <table>
-                            {% if error %}
-                                <tr class="alert alert-error">
-                                    Invalid username and password.
-                                </tr>
-                            {% endif %}
-                            {% if logout %}
-                                <tr class="alert alert-success">
-                                    You have been logged out.
-                                </tr>
-                            {% endif %}
-                            <tr><th><label for="username">User ID</label></th></tr>
-                            <tr><td><input id='username' name="username" size="20" required></td></tr>
-                            <tr><th><label for="password">Password</label></th></tr>
-                            <tr><td><input type="password" id="password" name="password" size="20" required></td></tr>
-                            <!-- Hidden input for 'next' page, which is set on unauthorized redirects -->
-                            <input type="hidden" name="next" value="{{ next }}">
-                            <tr><th><input type="submit" value="Submit"></th></tr>
-                        </table>
-                    </form>
-                </div>
 
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="mb-5">
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Username</label>
+                <input type="text" name="username" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2d4f1e]" placeholder="Enter username" required>
+            </div>
+            <div class="mb-8">
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+                <input type="password" name="password" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2d4f1e]" placeholder="Enter password" required>
+            </div>
+            <button type="submit" class="w-full bg-[#2d4f1e] text-white font-bold py-3 rounded-lg hover:bg-green-900 transition duration-300 shadow-lg">
+                Sign In
+            </button>
+        </form>
+
+        <div class="mt-8 pt-6 border-t border-slate-200 text-center">
+            <p class="text-slate-600">New to the portal?</p>
+            <a href="{{ url_for('register') }}" class="text-[#2d4f1e] font-bold hover:underline">Create an Account</a>
         </div>
     </div>
-{% endblock %}
+</body>
+</html>

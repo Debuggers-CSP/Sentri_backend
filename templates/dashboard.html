@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRC SOS Navigator - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-stone-50 min-h-screen">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-[#2d4f1e] text-white shadow-lg p-4">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-wide">PRC SOS NAVIGATOR</h1>
+            <div class="flex items-center space-x-6">
+                <span class="text-sm border-r border-green-700 pr-6">Member: <strong class="uppercase">{{ username }}</strong></span>
+                <a href="{{ url_for('logout') }}" class="text-sm bg-white text-[#2d4f1e] px-4 py-2 rounded-lg font-bold hover:bg-stone-200 transition">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto mt-10 p-6">
+        
+        <!-- Welcome Header -->
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-slate-800">Welcome Back.</h2>
+            <p class="text-slate-500">Your history and logs are kept secure and private.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            <!-- SOS INPUT SECTION (Main Focus) -->
+            <div class="md:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                <h3 class="text-lg font-bold text-[#2d4f1e] mb-4">Daily Wellness Check-In</h3>
+                <p class="text-sm text-slate-500 mb-6 italic">"How are you feeling right now? Type freely—the SOS Navigator analyzes your sentiment to provide the right support."</p>
+                
+                <form action="#" method="POST">
+                    <textarea 
+                        name="user_text" 
+                        rows="5" 
+                        class="w-full p-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#2d4f1e] focus:outline-none bg-stone-50"
+                        placeholder="Type what's on your mind..."></textarea>
+                    
+                    <button type="submit" class="mt-4 w-full bg-[#2d4f1e] text-white font-bold py-3 rounded-xl hover:bg-green-900 transition shadow-md">
+                        Log Entry & Check Sentiment
+                    </button>
+                </form>
+            </div>
+
+            <!-- HISTORY SIDEBAR (The "Items at our Disposal") -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-md font-bold text-slate-700 mb-4 border-b pb-2">Recent History</h3>
+                
+                <div class="space-y-4">
+                    {% if history %}
+                        {% for log in history %}
+                        <div class="p-3 bg-stone-50 rounded-lg border-l-4 border-[#2d4f1e]">
+                            <p class="text-xs text-slate-400 mb-1">{{ log.timestamp }}</p>
+                            <p class="text-sm text-slate-700 line-clamp-2">{{ log.user_text }}</p>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-10">
+                            <div class="text-[#2d4f1e] opacity-20 text-4xl mb-2">📄</div>
+                            <p class="text-xs text-slate-400 uppercase tracking-widest">No Logs Found</p>
+                            <p class="text-[10px] text-slate-300 mt-1">Start typing to build your history.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- PRC RESOURCE QUICK-LINKS (Footer context) -->
+        <div class="mt-12 pt-8 border-t border-slate-200 flex justify-center space-x-8">
+            <a href="https://powayrecoverycenter.org/meetings" target="_blank" class="text-xs font-bold text-slate-400 hover:text-[#2d4f1e]">MEETING SCHEDULE</a>
+            <a href="https://powayrecoverycenter.org/volunteer" target="_blank" class="text-xs font-bold text-slate-400 hover:text-[#2d4f1e]">VOLUNTEER</a>
+            <a href="#" class="text-xs font-bold text-red-400 hover:text-red-600">EMERGENCY: 911</a>
+        </div>
+
+    </main>
+
+</body>
+</html>

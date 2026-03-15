@@ -144,11 +144,7 @@ def index():
 
 
 
-@app.route('/users/table2')
-@login_required
-def u2table():
-    users = User.query.all()
-    return render_template("u2table.html", user_data=users)
+
 
 @app.route('/sections/')
 @login_required
