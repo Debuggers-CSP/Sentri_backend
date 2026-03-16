@@ -310,8 +310,18 @@ def update_user(uid):
         print("User not found.")  # Log when user is not found
         return jsonify({"message": "User not found."}), 404
 
-
-
+@app.route('/api/users/current', methods=['GET'])
+@login_required
+def get_current_user():
+    return jsonify({
+        "success": True,
+        "user": {
+            "id": current_user.id,
+            "uid": current_user.uid,
+            "name": current_user.name,
+            "role": current_user.role
+        }
+    }), 200
     
 # Create an AppGroup for custom commands
 custom_cli = AppGroup('custom', help='Custom commands')

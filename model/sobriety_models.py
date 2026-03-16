@@ -2,6 +2,7 @@ from datetime import datetime
 from __init__ import db
 from __init__ import app
 
+
 class SobrietyProfile(db.Model):
     __tablename__ = "sobriety_profiles"
     __bind_key__ = "sobriety"
@@ -67,6 +68,8 @@ class DailyCheckin(db.Model):
     craving_score = db.Column(db.Integer, nullable=False)
     sleep_hours = db.Column(db.Float, nullable=False)
 
+    stayed_sober_today = db.Column(db.Boolean, nullable=False)
+
     attended_meeting = db.Column(db.Boolean, default=False, nullable=False)
     exercise_done = db.Column(db.Boolean, default=False, nullable=False)
     journal_note = db.Column(db.Text, nullable=True)
@@ -86,6 +89,7 @@ class DailyCheckin(db.Model):
         stress_score,
         craving_score,
         sleep_hours,
+        stayed_sober_today,
         attended_meeting=False,
         exercise_done=False,
         journal_note=None,
@@ -99,6 +103,7 @@ class DailyCheckin(db.Model):
         self.stress_score = stress_score
         self.craving_score = craving_score
         self.sleep_hours = sleep_hours
+        self.stayed_sober_today = stayed_sober_today
         self.attended_meeting = attended_meeting
         self.exercise_done = exercise_done
         self.journal_note = journal_note
@@ -115,6 +120,7 @@ class DailyCheckin(db.Model):
             "stress_score": self.stress_score,
             "craving_score": self.craving_score,
             "sleep_hours": self.sleep_hours,
+            "stayed_sober_today": self.stayed_sober_today,
             "attended_meeting": self.attended_meeting,
             "exercise_done": self.exercise_done,
             "journal_note": self.journal_note,
@@ -156,6 +162,7 @@ class UserReward(db.Model):
             "redeemed_at": self.redeemed_at.isoformat() if self.redeemed_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
+
 
 def initSobrietyTables():
     with app.app_context():
