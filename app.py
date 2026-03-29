@@ -113,37 +113,31 @@ def register():
         db.close()
         return jsonify({"message": "Username already exists!"}), 409
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['POST'])
 def login():
-    if request.method == 'POST':
-        data = request.get_json(silent=True) or {}
-        username = data.get('username')
-        password = data.get('password')
+    data = request.get_json(silent=True) or {}
+    username = data.get('username')
+    password = data.get('password')
+    
+    db = get_db_connection()
+    user_row = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    db.close()
+
+    if user_row and check_password_hash(user_row['password'], password):
+        # IMPORTANT: Set session variables so /dashboard works
+        session['user_id'] = user_row['id'] 
+        session['username'] = user_row['username']
         
-        # 1. Connect to DB and look for the user
-        db = get_db_connection()
-        user_row = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-        db.close()
-
-        # 2. Verify user exists AND the password matches the hash
-        if user_row and check_password_hash(user_row['password'], password):
-            print(f"\n--- DATA VERIFIED ---")
-            print(f"User is trying to log in as: {username}")
-            
-            return jsonify({
-                "status": "success",
-                "message": f"Verify Test: I see you, {username}!"
-            }), 200
-        else:
-            # 3. If user doesn't exist or password fails
-            print(f"LOGIN FAILED for: {username}")
-            return jsonify({
-                "status": "fail",
-                "message": "Invalid username or password"
-            }), 401 # 401 means Unauthorized
-
-    return render_template('login.html')
-
+        return jsonify({
+            "status": "success",
+            "message": "Login successful",
+            "user": {"username": username} # Send user info back
+        }), 200
+    else:
+        return jsonify({
+            "status": "fail",
+            "message": "Invalid username or password"
+        }), 401
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
     if 'user_id' not in session:
