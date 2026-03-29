@@ -131,7 +131,10 @@ def login():
         return jsonify({
             "status": "success",
             "message": "Login successful",
-            "user": {"username": username} # Send user info back
+            "user": {
+                "username": user_row['username'],
+                "email": user_row['email']  # <--- THIS IS THE KEY CHANGE
+            }
         }), 200
     else:
         return jsonify({
