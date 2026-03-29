@@ -86,46 +86,62 @@ def index():
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['POST'])
 def register():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        hashed_pw = generate_password_hash(password)
+    # Use get_json() to catch the data from React's JSON.stringify
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    email = data.get('email')  # Optional: If you want to store email as well
+
+    print(f"\n--- REGISTRATIONDATA VERIFIED ---")
+    print(f"User is trying to log in as: {username}")
         
-        db = get_db_connection()
-        try:
-            db.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_pw))
-            db.commit()
-            db.close()
-            print(f"DEBUG: User {username} registered successfully.")
-            return redirect(url_for('login'))
-        except sqlite3.IntegrityError:
-            db.close()
-            flash('Username already exists!')
-            return redirect(url_for('register'))
-            
-    return render_template('register.html')
+
+    if not username or not password:
+        return jsonify({"message": "Username and password are required"}), 400
+
+    hashed_pw = generate_password_hash(password)
+    
+    db = get_db_connection()
+    try:
+        db.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_pw))
+        db.commit()
+        db.close()
+        return jsonify({"message": "User registered successfully"}), 201
+    except sqlite3.IntegrityError:
+        db.close()
+        return jsonify({"message": "Username already exists!"}), 409
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        data = request.get_json(silent=True) or {}
+        username = data.get('username')
+        password = data.get('password')
         
+        # 1. Connect to DB and look for the user
         db = get_db_connection()
-        user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        user_row = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
         db.close()
-        
-        if user and check_password_hash(user['password'], password):
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            print(f"DEBUG: User {username} logged in.")
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid username or password')
-            return redirect(url_for('login'))
+
+        # 2. Verify user exists AND the password matches the hash
+        if user_row and check_password_hash(user_row['password'], password):
+            print(f"\n--- DATA VERIFIED ---")
+            print(f"User is trying to log in as: {username}")
             
+            return jsonify({
+                "status": "success",
+                "message": f"Verify Test: I see you, {username}!"
+            }), 200
+        else:
+            # 3. If user doesn't exist or password fails
+            print(f"LOGIN FAILED for: {username}")
+            return jsonify({
+                "status": "fail",
+                "message": "Invalid username or password"
+            }), 401 # 401 means Unauthorized
+
     return render_template('login.html')
 
 @app.route('/dashboard', methods=['GET', 'POST'])
