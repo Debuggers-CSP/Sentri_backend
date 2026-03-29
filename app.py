@@ -105,7 +105,7 @@ def register():
     
     db = get_db_connection()
     try:
-        db.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_pw))
+        db.execute('INSERT INTO users (username, password, email) VALUES (?, ?, ?)', (username, hashed_pw, email))
         db.commit()
         db.close()
         return jsonify({"message": "User registered successfully"}), 201
