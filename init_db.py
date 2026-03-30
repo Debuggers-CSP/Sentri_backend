@@ -22,6 +22,17 @@ def init_db():
                   user_text TEXT NOT NULL, 
                   sentiment_score REAL,
                   FOREIGN KEY(user_id) REFERENCES users(id))''')
+    
+     # --- ADDED: USER MEETINGS TABLE ---
+    c.execute('''CREATE TABLE IF NOT EXISTS user_meetings 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  user_id INTEGER NOT NULL, 
+                  name TEXT NOT NULL, 
+                  date TEXT NOT NULL, 
+                  time TEXT NOT NULL, 
+                  location TEXT, 
+                  type TEXT, 
+                  FOREIGN KEY(user_id) REFERENCES users(id))''')
 
     # 2. Re-initialize Programs with SPECIFIC slugs
     c.execute('DROP TABLE IF EXISTS prc_programs')
