@@ -132,6 +132,7 @@ def login():
             "status": "success",
             "message": "Login successful",
             "user": {
+                "id": user_row['id'], # <--- ADD THIS
                 "username": user_row['username'],
                 "email": user_row['email']  # <--- THIS IS THE KEY CHANGE
             }
@@ -187,6 +188,56 @@ def dashboard():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+# 1. Route to SAVE a meeting to a user's calendar
+@app.route('/add-meeting', methods=['POST'])
+def add_meeting():
+    data = request.get_json()
+    
+    # DEBUG: Check your Flask terminal after you click the button to see this:
+    print(f"\n--- RECEIVED MEETING DATA ---")
+    print(data) 
+
+    user_id = data.get('user_id')
+    name = data.get('name')      # React must send 'name'
+    date = data.get('date')      # React must send 'date'
+    time = data.get('time')      # React must send 'time'
+    location = data.get('location', 'N/A')
+    m_type = data.get('type', 'Open')
+
+    # Safety Check: If name is missing, don't even try the database
+    if not name:
+        return jsonify({"message": "Error: Meeting name is missing in request"}), 400
+
+    db = get_db_connection()
+    try:
+        db.execute('''
+            INSERT INTO user_meetings (user_id, name, date, time, location, type)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (user_id, name, date, time, location, m_type))
+        db.commit()
+        return jsonify({"status": "success", "message": f"Added {name} to calendar"}), 201
+    except Exception as e:
+        print(f"DATABASE ERROR: {e}")
+        return jsonify({"message": "Database insertion failed"}), 500
+    finally:
+        db.close()
+
+# 2. Route to FETCH all meetings for the logged-in user
+@app.route('/get-user-meetings', methods=['GET'])
+def get_user_meetings():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"message": "Unauthorized"}), 401
+        
+    db = get_db_connection()
+    # Fetch meetings specifically for this user
+    rows = db.execute('SELECT * FROM user_meetings WHERE user_id = ? ORDER BY date ASC', (user_id,)).fetchall()
+    db.close()
+    
+    # Convert sqlite3.Row objects to a list of dictionaries for React
+    meetings_list = [dict(row) for row in rows]
+    return jsonify(meetings_list), 200
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
