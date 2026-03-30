@@ -226,16 +226,22 @@ def add_meeting():
 # 2. Route to FETCH all meetings for the logged-in user
 @app.route('/get-user-meetings', methods=['GET'])
 def get_user_meetings():
-    user_id = session.get('user_id')
+    # CHANGE: Look for user_id in the URL parameters (?user_id=...)
+    # instead of session.get('user_id')
+    user_id = request.args.get('user_id')
+    
+    # DEBUG PRINT: Check your Flask terminal to see this
+    print(f"DEBUG: Fetching meetings for user_id: {user_id}")
+
     if not user_id:
-        return jsonify({"message": "Unauthorized"}), 401
+        # If no ID is provided, return an error
+        return jsonify({"message": "User ID is required"}), 400
         
     db = get_db_connection()
-    # Fetch meetings specifically for this user
+    # Fetch meetings for this specific ID
     rows = db.execute('SELECT * FROM user_meetings WHERE user_id = ? ORDER BY date ASC', (user_id,)).fetchall()
     db.close()
     
-    # Convert sqlite3.Row objects to a list of dictionaries for React
     meetings_list = [dict(row) for row in rows]
     return jsonify(meetings_list), 200
 
