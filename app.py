@@ -246,4 +246,4 @@ def get_user_meetings():
     return jsonify(meetings_list), 200
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=8323)
