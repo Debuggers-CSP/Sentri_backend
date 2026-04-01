@@ -5,10 +5,18 @@ import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from textblob import TextBlob
 from datetime import datetime
+from flask_cors import CORS
+
 
 app = Flask(__name__)
 app.secret_key = 'prc_sos_secret_key'
-CORS(app, supports_credentials=True)
+# Update this line:
+CORS(app, supports_credentials=True, origins=[
+    "https://debuggers-csp.github.io",   # Your new live site
+    "http://localhost:3000",            # Local development
+    "http://localhost:5173",            # Vite default port
+    "https://open-coding-society.github.io" # Keep the old one just in case
+])
 
 # --- NEW: ABSOLUTE PATH LOGIC ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
