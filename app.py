@@ -4,6 +4,7 @@ from flask_cors import CORS
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from textblob import TextBlob
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'prc_sos_secret_key'
@@ -79,6 +80,24 @@ def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+def init_chat_db():
+    db = get_db_connection()
+    # Create the chat table if it doesn't exist
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS program_chats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            program_id TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            message TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    db.commit()
+    db.close()
+
+init_chat_db() # Run it when the script starts
 
 @app.route('/')
 def index():
@@ -245,5 +264,68 @@ def get_user_meetings():
     meetings_list = [dict(row) for row in rows]
     return jsonify(meetings_list), 200
 
+@app.route('/send-chat-message', methods=['POST'])
+def send_chat_message():
+    data = request.get_json()
+    program_id = data.get('program_id')
+    user_id = data.get('user_id')
+    message = data.get('message')
+    username = data.get('username') # Might be None
+
+    # Check the basics
+    if not all([program_id, user_id, message]):
+        return jsonify({"message": "Missing required fields"}), 400
+
+    db = get_db_connection()
+    try:
+        # If username is missing, fetch it from the users table
+        if not username:
+            user_row = db.execute('SELECT username FROM users WHERE id = ?', (user_id,)).fetchone()
+            username = user_row['username'] if user_row else f"User {user_id}"
+
+        db.execute('''
+            INSERT INTO program_chats (program_id, user_id, username, message)
+            VALUES (?, ?, ?, ?)
+        ''', (program_id, user_id, username, message))
+        db.commit()
+        return jsonify({"status": "success"}), 201
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"message": str(e)}), 500
+    finally:
+        db.close()
+
+@app.route('/get-chat-history/<program_id>', methods=['GET'])
+def get_chat_history(program_id):
+    db = get_db_connection()
+    # Get last 50 messages for this specific program
+    rows = db.execute('''
+        SELECT * FROM program_chats 
+        WHERE program_id = ? 
+        ORDER BY timestamp ASC 
+        LIMIT 50
+    ''', (program_id,)).fetchall()
+    db.close()
+    
+    messages = [dict(row) for row in rows]
+    return jsonify(messages), 200
+
+@app.route('/get-user-community-chats', methods=['GET'])
+def get_user_community_chats():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"message": "User ID is required"}), 400
+        
+    db = get_db_connection()
+    # Fetch messages from the COMMUNITY CHAT table
+    rows = db.execute('''
+        SELECT * FROM program_chats 
+        WHERE user_id = ? 
+        ORDER BY timestamp DESC
+    ''', (user_id,)).fetchall()
+    db.close()
+    
+    chats_list = [dict(row) for row in rows]
+    return jsonify(chats_list), 200
 if __name__ == '__main__':
     app.run(debug=True, port=8323)
