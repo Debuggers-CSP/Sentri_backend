@@ -117,6 +117,15 @@ app.register_blueprint(joke_api)
 app.register_blueprint(post_api)
 app.register_blueprint(titanic_api)
 
+# --- ADDED: ROOT HEALTH CHECK ROUTE (Fixes 404) ---
+@app.route('/')
+def health_check():
+    return jsonify({
+        "status": "online",
+        "message": "Sentri Backend API is running",
+        "version": "1.0.0"
+    }), 200
+
 # --- NEW SENTRI ROUTES (Integrated) ---
 
 @app.route('/register', methods=['POST'])
@@ -173,7 +182,6 @@ def get_user_community_chats():
 # (Add other routes like /add-meeting, /get-user-meetings here if needed...)
 
 # --- ORIGINAL main.py APP STARTUP ---
-# --- MOVE THIS ABOVE THE IF BLOCK ---
 with app.app_context():
     init_sentri_db()
 
