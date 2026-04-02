@@ -173,13 +173,15 @@ def get_user_community_chats():
 # (Add other routes like /add-meeting, /get-user-meetings here if needed...)
 
 # --- ORIGINAL main.py APP STARTUP ---
+# --- MOVE THIS ABOVE THE IF BLOCK ---
+with app.app_context():
+    init_sentri_db()
+
 if __name__ == "__main__":
     with app.app_context():
         from hacks.jokes import initJokes
         initJokes()
-        init_sentri_db() # Initialize Sentri tables
     
     host = "0.0.0.0"
     port = app.config.get('FLASK_PORT', 8323)
-    print(f"** Server running: http://localhost:{port}")
     app.run(debug=True, host=host, port=port, use_reloader=False)
