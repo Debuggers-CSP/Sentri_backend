@@ -17,17 +17,6 @@ from textblob import TextBlob
 # import "objects" from "this" project
 from __init__ import app, db, login_manager  
 
-CORS(app, 
-     supports_credentials=True, 
-     resources={r"/*": {"origins": [
-         "https://debuggers-csp.github.io", 
-         "http://localhost:3000", 
-         "http://localhost:5173", 
-         "https://open-coding-society.github.io"
-     ]}},
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "OPTIONS"])
-
 # --- NEW: SENTRI DATABASE LOGIC (from your app.py) ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SENTRI_DB_PATH = os.path.join(BASE_DIR, 'prc_crisis.db')
