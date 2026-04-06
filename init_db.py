@@ -13,6 +13,8 @@ def init_db():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   username TEXT UNIQUE NOT NULL, 
                      email TEXT UNIQUE NOT NULL,
+                    fname TEXT UNIQUE NOT NULL,
+                    lname TEXT UNIQUE NOT NULL,
                   password TEXT NOT NULL)''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS logs 
@@ -33,6 +35,21 @@ def init_db():
                   location TEXT, 
                   type TEXT, 
                   FOREIGN KEY(user_id) REFERENCES users(id))''')
+    
+    # ... after c.execute('''CREATE TABLE IF NOT EXISTS users ... ''')
+
+    # Programmatically add fname and lname if they don't exist
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN fname TEXT')
+        print("✅ Added column: fname")
+    except sqlite3.OperationalError:
+        print("ℹ️ Column fname already exists, skipping...")
+
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN lname TEXT')
+        print("✅ Added column: lname")
+    except sqlite3.OperationalError:
+        print("ℹ️ Column lname already exists, skipping...")
 
     # 2. Re-initialize Programs with SPECIFIC slugs
     c.execute('DROP TABLE IF EXISTS prc_programs')

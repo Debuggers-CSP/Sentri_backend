@@ -114,11 +114,22 @@ def index():
 def register():
     if request.method == 'POST':
         data = request.get_json()
-        username, password, email = data.get('username'), data.get('password'), data.get('email')
+        username, password, email, fname, lname = data.get('username'), data.get('password'), data.get('email'), data.get('fname'), data.get('lname')
+                # --- DEBUG PRINT ---
+        print("DEBUG: Received data from frontend:", data)
+        
+        username = data.get('username')
+        password = data.get('password')
+        email = data.get('email')
+        fname = data.get('fname') # Verify this matches React
+        lname = data.get('lname') # Verify this matches React
+
+        # --- DEBUG PRINT ---
+        print(f"DEBUG: Extracted fname: {fname}, lname: {lname}")
         hashed_pw = generate_password_hash(password)
         db_conn = get_sentri_db_connection()
         try:
-            db_conn.execute('INSERT INTO users (username, password, email) VALUES (?, ?, ?)', (username, hashed_pw, email))
+            db_conn.execute('INSERT INTO users (username, password, email, fname, lname) VALUES (?, ?, ?, ?, ?)', (username, hashed_pw, email, fname, lname))
             db_conn.commit()
             return jsonify({"message": "User registered"}), 201
         except: return jsonify({"message": "Error"}), 409
