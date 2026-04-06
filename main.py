@@ -148,11 +148,16 @@ def login():
         db_conn.close()
 
         if user_row and check_password_hash(user_row['password'], password):
+
+            print("\n--- DEBUG STEP 1: BACKEND DB CHECK ---")
+            print(f"User found: {user_row['username']}")
+            print(f"Fname in DB: {user_row['fname']}")
+            print(f"Lname in DB: {user_row['lname']}")
             # If it's a React request, return JSON
             if request.is_json:
                 return jsonify({
                     "status": "success", 
-                    "user": {"id": user_row['id'], "username": user_row['username'], "email": user_row['email']}
+                    "user": {"id": user_row['id'], "username": user_row['username'], "email": user_row['email'], "fname": user_row['fname'], "lname": user_row['lname']}
                 }), 200
             
             # If it's a browser form request, use flask-login
@@ -253,6 +258,17 @@ def get_user_community_chats():
     rows = db_conn.execute('SELECT * FROM program_chats WHERE user_id = ? ORDER BY timestamp DESC', (u_id,)).fetchall()
     db_conn.close()
     return jsonify([dict(row) for row in rows]), 200
+
+@app.route('/get-user-details', methods=['GET'])
+def get_user_details():
+    user_id = request.args.get('user_id')
+    db_conn = get_sentri_db_connection()
+    user_row = db_conn.execute('SELECT username, email, fname, lname FROM users WHERE id = ?', (user_id,)).fetchone()
+    db_conn.close()
+    
+    if user_row:
+        return jsonify(dict(user_row)), 200
+    return jsonify({"message": "User not found"}), 404
 
 # --- 6. STARTUP ---
 with app.app_context():
