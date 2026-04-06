@@ -10,6 +10,7 @@ import requests
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from textblob import TextBlob
+from flask_cors import CORS
 
 # Import objects from your project's __init__
 from __init__ import app, db, login_manager  
@@ -155,6 +156,8 @@ def login():
         
     return render_template("login.html")
 
+
+
 @app.route('/send-chat-message', methods=['POST'])
 def send_chat_message():
     data = request.get_json()
@@ -187,4 +190,5 @@ with app.app_context():
 if __name__ == "__main__":
     host = "0.0.0.0"
     port = 8323
+    CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
     app.run(debug=True, host=host, port=port, use_reloader=False)
