@@ -13,6 +13,7 @@ from textblob import TextBlob
 from flask_cors import CORS
 
 # Import objects from your project's __init__
+
 from __init__ import app, db, login_manager  
 # Import the User model for the user_loader
 from model.user import User
@@ -156,6 +157,65 @@ def login():
         
     return render_template("login.html")
 
+@app.route('/add-meeting', methods=['POST'])
+def add_meeting():
+    data = request.get_json()
+    
+    # DEBUG: Check your Flask terminal after you click the button to see this:
+    print(f"\n--- RECEIVED MEETING DATA ---")
+    print(data) 
+
+    user_id = data.get('user_id')
+    name = data.get('name')      # React must send 'name'
+    date = data.get('date')      # React must send 'date'
+    time = data.get('time')      # React must send 'time'
+    location = data.get('location', 'N/A')
+    m_type = data.get('type', 'Open')
+
+    # Safety Check: If name is missing, don't even try the database
+    if not name:
+        return jsonify({"message": "Error: Meeting name is missing in request"}), 400
+
+    db = get_sentri_db_connection()
+    try:
+        db.execute('''
+            INSERT INTO user_meetings (user_id, name, date, time, location, type)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (user_id, name, date, time, location, m_type))
+        db.commit()
+        return jsonify({"status": "success", "message": f"Added {name} to calendar"}), 201
+    except Exception as e:
+        print(f"DATABASE ERROR: {e}")
+        return jsonify({"message": "Database insertion failed"}), 500
+    finally:
+        db.close()
+
+# 2. Route to FETCH all meetings for the logged-in user
+@app.route('/get-user-meetings', methods=['GET'])
+def get_user_meetings():
+    # CHANGE: Look for user_id in the URL parameters (?user_id=...)
+    # instead of session.get('user_id')
+    user_id = request.args.get('user_id')
+    
+    # DEBUG PRINT: Check your Flask terminal to see this
+    print(f"DEBUG: Fetching meetings for user_id: {user_id}")
+
+    if not user_id:
+        # If no ID is provided, return an error
+        return jsonify({"message": "User ID is required"}), 400
+        
+    db = get_sentri_db_connection()
+    # Fetch meetings for this specific ID
+    rows = db.execute('SELECT * FROM user_meetings WHERE user_id = ? ORDER BY date ASC', (user_id,)).fetchall()
+    db.close()
+    
+    meetings_list = [dict(row) for row in rows]
+    return jsonify(meetings_list), 200
+
+@app.route('/logout')
+def logout():
+    requests.session.clear()
+    return redirect(url_for('login'))
 
 
 @app.route('/send-chat-message', methods=['POST'])
