@@ -11,6 +11,7 @@ import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from textblob import TextBlob
 from flask_cors import CORS
+from db_population_helper import populate_demo_data
 
 # Import objects from your project's __init__
 
@@ -40,6 +41,20 @@ def get_sentri_db_connection():
 
 def init_sentri_db():
     db_conn = get_sentri_db_connection()
+    
+    # 1. NEW: Create the users table (This was missing!)
+    db_conn.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            fname TEXT,
+            lname TEXT
+        )
+    ''')
+
+    # 2. Create program_chats table
     db_conn.execute('''
         CREATE TABLE IF NOT EXISTS program_chats (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,6 +65,8 @@ def init_sentri_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # 3. Create logs table
     db_conn.execute('''
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,8 +76,25 @@ def init_sentri_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # 4. Create user_meetings table (So the calendar works)
+    db_conn.execute('''
+        CREATE TABLE IF NOT EXISTS user_meetings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            date TEXT NOT NULL,
+            time TEXT NOT NULL,
+            location TEXT,
+            type TEXT
+        )
+    ''')
+    
     db_conn.commit()
     db_conn.close()
+    
+    # Trigger the population helper
+    populate_demo_data(SENTRI_DB_PATH)
 
 # --- 3. SENTRI TRIAGE ENGINE ---
 def sos_triage_engine(user_input, program_data):
