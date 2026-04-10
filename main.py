@@ -50,7 +50,8 @@ def init_sentri_db():
             password TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             fname TEXT,
-            lname TEXT
+            lname TEXT,
+            joined_program TEXT
         )
     ''')
 
@@ -89,7 +90,7 @@ def init_sentri_db():
             type TEXT
         )
     ''')
-    
+        
     db_conn.commit()
     db_conn.close()
     
@@ -191,7 +192,7 @@ def login():
             if request.is_json:
                 return jsonify({
                     "status": "success", 
-                    "user": {"id": user_row['id'], "username": user_row['username'], "email": user_row['email'], "fname": user_row['fname'], "lname": user_row['lname']}
+                    "user": {"id": user_row['id'], "username": user_row['username'], "email": user_row['email'], "fname": user_row['fname'], "lname": user_row['lname'], "joined_program": user_row['joined_program']}
                 }), 200
             
             # If it's a browser form request, use flask-login
@@ -297,12 +298,63 @@ def get_user_community_chats():
 def get_user_details():
     user_id = request.args.get('user_id')
     db_conn = get_sentri_db_connection()
-    user_row = db_conn.execute('SELECT username, email, fname, lname FROM users WHERE id = ?', (user_id,)).fetchone()
+    user_row = db_conn.execute(
+        'SELECT username, email, fname, lname, joined_program FROM users WHERE id = ?',
+        (user_id,)
+    ).fetchone()
     db_conn.close()
     
     if user_row:
         return jsonify(dict(user_row)), 200
     return jsonify({"message": "User not found"}), 404
+
+@app.route('/join-program', methods=['POST'])
+def join_program():
+    data = request.get_json(silent=True) or {}
+
+    user_id = data.get('user_id')
+    program_id = data.get('program_id')
+
+    if not user_id or not program_id:
+        return jsonify({"message": "user_id and program_id are required"}), 400
+
+    db_conn = get_sentri_db_connection()
+
+    try:
+        # Make sure the joined_program column exists
+        db_conn.execute('ALTER TABLE users ADD COLUMN joined_program TEXT')
+        db_conn.commit()
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
+
+    try:
+        user_row = db_conn.execute(
+            'SELECT id FROM users WHERE id = ?',
+            (user_id,)
+        ).fetchone()
+
+        if not user_row:
+            return jsonify({"message": "User not found"}), 404
+
+        db_conn.execute(
+            'UPDATE users SET joined_program = ? WHERE id = ?',
+            (program_id, user_id)
+        )
+        db_conn.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": f"Joined program '{program_id}' successfully",
+            "joined_program": program_id
+        }), 200
+
+    except Exception as e:
+        print(f"JOIN PROGRAM ERROR: {e}")
+        return jsonify({"message": "Failed to join program"}), 500
+
+    finally:
+        db_conn.close()
 
 # --- 6. STARTUP ---
 with app.app_context():
