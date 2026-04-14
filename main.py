@@ -124,6 +124,7 @@ from api.post import post_api
 from api.study import study_api
 from api.feedback_api import feedback_api
 from machinelearning.api.titanic_api import titanic_api
+from machinelearning.program_match_model import ProgramMatchModel
 
 app.register_blueprint(python_exec_api); app.register_blueprint(javascript_exec_api)
 app.register_blueprint(user_api); app.register_blueprint(section_api)
@@ -134,6 +135,8 @@ app.register_blueprint(student_api); app.register_blueprint(study_api)
 app.register_blueprint(classroom_api); app.register_blueprint(feedback_api)
 app.register_blueprint(data_export_import_api); app.register_blueprint(joke_api)
 app.register_blueprint(post_api); app.register_blueprint(titanic_api)
+
+program_match_model = ProgramMatchModel()
 
 # --- 5. ROUTES ---
 
@@ -355,6 +358,19 @@ def join_program():
 
     finally:
         db_conn.close()
+
+@app.route('/api/ml/match', methods=['POST'])
+def match_programs():
+    payload = request.get_json(silent=True) or {}
+    scores = program_match_model.predict_probabilities(payload)
+    return jsonify(scores), 200
+
+
+@app.route('/api/ml/match-programs', methods=['POST'])
+def match_programs_legacy():
+    payload = request.get_json(silent=True) or {}
+    scores = program_match_model.predict_probabilities(payload)
+    return jsonify({"match_scores": scores}), 200
 
 # --- 6. STARTUP ---
 with app.app_context():
