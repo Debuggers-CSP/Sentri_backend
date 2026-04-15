@@ -381,3 +381,42 @@ if __name__ == "__main__":
     port = 8323
     CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
     app.run(debug=True, host=host, port=port, use_reloader=False)
+
+# Add Meeting model
+class Meeting(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    date = db.Column(db.String(50), nullable=False)
+    time = db.Column(db.String(50), nullable=False)
+    location = db.Column(db.String(100), nullable=False)
+    type = db.Column(db.String(50), nullable=False)
+
+# Add bulk-load-meetings route
+@app.route('/bulk-load-meetings', methods=['POST'])
+def bulk_load_meetings():
+    try:
+        data = request.get_json()
+        meetings = data.get('meetings', [])
+
+        if not meetings:
+            return jsonify({"error": "No meetings provided"}), 400
+
+        for meeting in meetings:
+            new_meeting = Meeting(
+                name=meeting['name'],
+                date=meeting['date'],
+                time=meeting['time'],
+                location=meeting['location'],
+                type=meeting['type']
+            )
+            db.session.add(new_meeting)
+
+        db.session.commit()
+        return jsonify({"message": "Meetings successfully added"}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Ensure database tables are created
+with app.app_context():
+    db.create_all()
