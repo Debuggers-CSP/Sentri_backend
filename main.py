@@ -1,7 +1,7 @@
 # --- IMPORTS ---
 from datetime import datetime
 from urllib.parse import urljoin, urlparse
-from flask import abort, redirect, render_template, request, send_from_directory, url_for, jsonify, current_app, g 
+from flask import abort, redirect, render_template, request, send_from_directory, url_for, jsonify, current_app, g
 from flask_login import current_user, login_user, logout_user, login_required
 from flask.cli import AppGroup
 from dotenv import load_dotenv
@@ -14,8 +14,7 @@ from flask_cors import CORS
 from db_population_helper import populate_demo_data
 
 # Import objects from your project's __init__
-
-from __init__ import app, db, login_manager  
+from __init__ import app, db, login_manager
 # Import the User model for the user_loader
 from model.user import User
 
@@ -24,25 +23,30 @@ from model.user import User
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+
 login_manager.login_view = "login"
+
 
 @login_manager.unauthorized_handler
 def unauthorized_callback():
     return redirect(url_for('login', next=request.path))
 
+
 # --- 2. SENTRI DATABASE LOGIC ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SENTRI_DB_PATH = os.path.join(BASE_DIR, 'prc_crisis.db')
+
 
 def get_sentri_db_connection():
     conn = sqlite3.connect(SENTRI_DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
+
 def init_sentri_db():
     db_conn = get_sentri_db_connection()
-    
-    # 1. NEW: Create the users table (This was missing!)
+
+    # 1. Create users table
     db_conn.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,7 +82,7 @@ def init_sentri_db():
         )
     ''')
 
-    # 4. Create user_meetings table (So the calendar works)
+    # 4. Create user_meetings table
     db_conn.execute('''
         CREATE TABLE IF NOT EXISTS user_meetings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,23 +94,24 @@ def init_sentri_db():
             type TEXT
         )
     ''')
-        
+
     db_conn.commit()
     db_conn.close()
-    
+
     # Trigger the population helper
     populate_demo_data(SENTRI_DB_PATH)
+
 
 # --- 3. SENTRI TRIAGE ENGINE ---
 def sos_triage_engine(user_input, program_data):
     analysis = TextBlob(user_input)
-    sentiment = analysis.sentiment.polarity 
+    sentiment = analysis.sentiment.polarity
     severity = "EMERGENCY" if any(w in user_input.lower() for w in ["suicide", "die", "overdose"]) else "Stable"
     return {"severity": severity, "sentiment": sentiment}
 
+
 # --- 4. REGISTER BLUEPRINTS ---
-# (Keeping your existing registrations)
-from api.user import user_api 
+from api.user import user_api
 from api.python_exec_api import python_exec_api
 from api.javascript_exec_api import javascript_exec_api
 from api.section import section_api
@@ -119,27 +124,36 @@ from api.gemini_api import gemini_api
 from api.microblog_api import microblog_api
 from api.classroom_api import classroom_api
 from api.data_export_import_api import data_export_import_api
-from hacks.joke import joke_api 
-from api.post import post_api  
+from hacks.joke import joke_api
+from api.post import post_api
 from api.study import study_api
 from api.feedback_api import feedback_api
 from machinelearning.api.titanic_api import titanic_api
 from machinelearning.program_match_model import ProgramMatchModel
 
-app.register_blueprint(python_exec_api); app.register_blueprint(javascript_exec_api)
-app.register_blueprint(user_api); app.register_blueprint(section_api)
-app.register_blueprint(persona_api); app.register_blueprint(pfp_api) 
-app.register_blueprint(groq_api); app.register_blueprint(gemini_api)
-app.register_blueprint(microblog_api); app.register_blueprint(analytics_api)
-app.register_blueprint(student_api); app.register_blueprint(study_api)
-app.register_blueprint(classroom_api); app.register_blueprint(feedback_api)
-app.register_blueprint(data_export_import_api); app.register_blueprint(joke_api)
-app.register_blueprint(post_api); app.register_blueprint(titanic_api)
+app.register_blueprint(python_exec_api)
+app.register_blueprint(javascript_exec_api)
+app.register_blueprint(user_api)
+app.register_blueprint(section_api)
+app.register_blueprint(persona_api)
+app.register_blueprint(pfp_api)
+app.register_blueprint(groq_api)
+app.register_blueprint(gemini_api)
+app.register_blueprint(microblog_api)
+app.register_blueprint(analytics_api)
+app.register_blueprint(student_api)
+app.register_blueprint(study_api)
+app.register_blueprint(classroom_api)
+app.register_blueprint(feedback_api)
+app.register_blueprint(data_export_import_api)
+app.register_blueprint(joke_api)
+app.register_blueprint(post_api)
+app.register_blueprint(titanic_api)
 
 program_match_model = ProgramMatchModel()
 
-# --- 5. ROUTES ---
 
+# --- 5. ROUTES ---
 @app.route('/')
 def index():
     # If the request asks for JSON, send the health check
@@ -148,31 +162,37 @@ def index():
     # Otherwise show the home page
     return render_template("index.html")
 
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         data = request.get_json()
-        username, password, email, fname, lname = data.get('username'), data.get('password'), data.get('email'), data.get('fname'), data.get('lname')
-                # --- DEBUG PRINT ---
+
         print("DEBUG: Received data from frontend:", data)
-        
+
         username = data.get('username')
         password = data.get('password')
         email = data.get('email')
-        fname = data.get('fname') # Verify this matches React
-        lname = data.get('lname') # Verify this matches React
+        fname = data.get('fname')
+        lname = data.get('lname')
 
-        # --- DEBUG PRINT ---
         print(f"DEBUG: Extracted fname: {fname}, lname: {lname}")
         hashed_pw = generate_password_hash(password)
         db_conn = get_sentri_db_connection()
         try:
-            db_conn.execute('INSERT INTO users (username, password, email, fname, lname) VALUES (?, ?, ?, ?, ?)', (username, hashed_pw, email, fname, lname))
+            db_conn.execute(
+                'INSERT INTO users (username, password, email, fname, lname) VALUES (?, ?, ?, ?, ?)',
+                (username, hashed_pw, email, fname, lname),
+            )
             db_conn.commit()
             return jsonify({"message": "User registered"}), 201
-        except: return jsonify({"message": "Error"}), 409
-        finally: db_conn.close()
-    return render_template("login.html") # Show login/register page for humans
+        except Exception:
+            return jsonify({"message": "Error"}), 409
+        finally:
+            db_conn.close()
+
+    return render_template("login.html")
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -186,20 +206,28 @@ def login():
         db_conn.close()
 
         if user_row and check_password_hash(user_row['password'], password):
-
             print("\n--- DEBUG STEP 1: BACKEND DB CHECK ---")
             print(f"User found: {user_row['username']}")
             print(f"Fname in DB: {user_row['fname']}")
             print(f"Lname in DB: {user_row['lname']}")
+
             # If it's a React request, return JSON
             if request.is_json:
-                return jsonify({
-                    "status": "success", 
-                    "user": {"id": user_row['id'], "username": user_row['username'], "email": user_row['email'], "fname": user_row['fname'], "lname": user_row['lname'], "joined_program": user_row['joined_program']}
-                }), 200
-            
+                return jsonify(
+                    {
+                        "status": "success",
+                        "user": {
+                            "id": user_row['id'],
+                            "username": user_row['username'],
+                            "email": user_row['email'],
+                            "fname": user_row['fname'],
+                            "lname": user_row['lname'],
+                            "joined_program": user_row['joined_program'],
+                        },
+                    }
+                ), 200
+
             # If it's a browser form request, use flask-login
-            from model.user import User
             user_obj = User.query.get(user_row['id'])
             if user_obj:
                 login_user(user_obj)
@@ -208,63 +236,63 @@ def login():
         if request.is_json:
             return jsonify({"status": "fail"}), 401
         return render_template("login.html", error="Invalid credentials")
-        
+
     return render_template("login.html")
+
 
 @app.route('/add-meeting', methods=['POST'])
 def add_meeting():
     data = request.get_json()
-    
-    # DEBUG: Check your Flask terminal after you click the button to see this:
-    print(f"\n--- RECEIVED MEETING DATA ---")
-    print(data) 
+
+    print("\n--- RECEIVED MEETING DATA ---")
+    print(data)
 
     user_id = data.get('user_id')
-    name = data.get('name')      # React must send 'name'
-    date = data.get('date')      # React must send 'date'
-    time = data.get('time')      # React must send 'time'
+    name = data.get('name')
+    date = data.get('date')
+    time = data.get('time')
     location = data.get('location', 'N/A')
     m_type = data.get('type', 'Open')
 
-    # Safety Check: If name is missing, don't even try the database
     if not name:
         return jsonify({"message": "Error: Meeting name is missing in request"}), 400
 
-    db = get_sentri_db_connection()
+    db_conn = get_sentri_db_connection()
     try:
-        db.execute('''
+        db_conn.execute(
+            '''
             INSERT INTO user_meetings (user_id, name, date, time, location, type)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (user_id, name, date, time, location, m_type))
-        db.commit()
+        ''',
+            (user_id, name, date, time, location, m_type),
+        )
+        db_conn.commit()
         return jsonify({"status": "success", "message": f"Added {name} to calendar"}), 201
     except Exception as e:
         print(f"DATABASE ERROR: {e}")
         return jsonify({"message": "Database insertion failed"}), 500
     finally:
-        db.close()
+        db_conn.close()
 
-# 2. Route to FETCH all meetings for the logged-in user
+
 @app.route('/get-user-meetings', methods=['GET'])
 def get_user_meetings():
-    # CHANGE: Look for user_id in the URL parameters (?user_id=...)
-    # instead of session.get('user_id')
     user_id = request.args.get('user_id')
-    
-    # DEBUG PRINT: Check your Flask terminal to see this
     print(f"DEBUG: Fetching meetings for user_id: {user_id}")
 
     if not user_id:
-        # If no ID is provided, return an error
         return jsonify({"message": "User ID is required"}), 400
-        
-    db = get_sentri_db_connection()
-    # Fetch meetings for this specific ID
-    rows = db.execute('SELECT * FROM user_meetings WHERE user_id = ? ORDER BY date ASC', (user_id,)).fetchall()
-    db.close()
-    
+
+    db_conn = get_sentri_db_connection()
+    rows = db_conn.execute(
+        'SELECT * FROM user_meetings WHERE user_id = ? ORDER BY date ASC',
+        (user_id,),
+    ).fetchall()
+    db_conn.close()
+
     meetings_list = [dict(row) for row in rows]
     return jsonify(meetings_list), 200
+
 
 @app.route('/logout')
 def logout():
@@ -276,26 +304,37 @@ def logout():
 def send_chat_message():
     data = request.get_json()
     db_conn = get_sentri_db_connection()
-    db_conn.execute('INSERT INTO program_chats (program_id, user_id, username, message) VALUES (?, ?, ?, ?)', 
-                    (data.get('program_id'), data.get('user_id'), data.get('username'), data.get('message')))
+    db_conn.execute(
+        'INSERT INTO program_chats (program_id, user_id, username, message) VALUES (?, ?, ?, ?)',
+        (data.get('program_id'), data.get('user_id'), data.get('username'), data.get('message')),
+    )
     db_conn.commit()
     db_conn.close()
     return jsonify({"status": "success"}), 201
 
+
 @app.route('/get-chat-history/<program_id>', methods=['GET'])
 def get_chat_history(program_id):
     db_conn = get_sentri_db_connection()
-    rows = db_conn.execute('SELECT * FROM program_chats WHERE program_id = ? ORDER BY timestamp ASC LIMIT 50', (program_id,)).fetchall()
+    rows = db_conn.execute(
+        'SELECT * FROM program_chats WHERE program_id = ? ORDER BY timestamp ASC LIMIT 50',
+        (program_id,),
+    ).fetchall()
     db_conn.close()
     return jsonify([dict(row) for row in rows]), 200
+
 
 @app.route('/get-user-community-chats', methods=['GET'])
 def get_user_community_chats():
     u_id = request.args.get('user_id')
     db_conn = get_sentri_db_connection()
-    rows = db_conn.execute('SELECT * FROM program_chats WHERE user_id = ? ORDER BY timestamp DESC', (u_id,)).fetchall()
+    rows = db_conn.execute(
+        'SELECT * FROM program_chats WHERE user_id = ? ORDER BY timestamp DESC',
+        (u_id,),
+    ).fetchall()
     db_conn.close()
     return jsonify([dict(row) for row in rows]), 200
+
 
 @app.route('/get-user-details', methods=['GET'])
 def get_user_details():
@@ -303,13 +342,14 @@ def get_user_details():
     db_conn = get_sentri_db_connection()
     user_row = db_conn.execute(
         'SELECT username, email, fname, lname, joined_program FROM users WHERE id = ?',
-        (user_id,)
+        (user_id,),
     ).fetchone()
     db_conn.close()
-    
+
     if user_row:
         return jsonify(dict(user_row)), 200
     return jsonify({"message": "User not found"}), 404
+
 
 @app.route('/join-program', methods=['POST'])
 def join_program():
@@ -332,25 +372,24 @@ def join_program():
         pass
 
     try:
-        user_row = db_conn.execute(
-            'SELECT id FROM users WHERE id = ?',
-            (user_id,)
-        ).fetchone()
+        user_row = db_conn.execute('SELECT id FROM users WHERE id = ?', (user_id,)).fetchone()
 
         if not user_row:
             return jsonify({"message": "User not found"}), 404
 
         db_conn.execute(
             'UPDATE users SET joined_program = ? WHERE id = ?',
-            (program_id, user_id)
+            (program_id, user_id),
         )
         db_conn.commit()
 
-        return jsonify({
-            "status": "success",
-            "message": f"Joined program '{program_id}' successfully",
-            "joined_program": program_id
-        }), 200
+        return jsonify(
+            {
+                "status": "success",
+                "message": f"Joined program '{program_id}' successfully",
+                "joined_program": program_id,
+            }
+        ), 200
 
     except Exception as e:
         print(f"JOIN PROGRAM ERROR: {e}")
@@ -358,6 +397,50 @@ def join_program():
 
     finally:
         db_conn.close()
+
+
+@app.route('/leave-program', methods=['POST'])
+def leave_program():
+    data = request.get_json(silent=True) or {}
+
+    user_id = data.get('user_id')
+    program_id = data.get('program_id')
+
+    if not user_id:
+        return jsonify({"message": "user_id is required"}), 400
+
+    db_conn = get_sentri_db_connection()
+
+    try:
+        user_row = db_conn.execute(
+            'SELECT id, joined_program FROM users WHERE id = ?',
+            (user_id,),
+        ).fetchone()
+
+        if not user_row:
+            return jsonify({"message": "User not found"}), 404
+
+        if program_id and user_row['joined_program'] != program_id:
+            return jsonify({"message": "User is not joined to that program"}), 409
+
+        db_conn.execute('UPDATE users SET joined_program = NULL WHERE id = ?', (user_id,))
+        db_conn.commit()
+
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Left program successfully",
+                "joined_program": None,
+            }
+        ), 200
+
+    except Exception as e:
+        print(f"LEAVE PROGRAM ERROR: {e}")
+        return jsonify({"message": "Failed to leave program"}), 500
+
+    finally:
+        db_conn.close()
+
 
 @app.route('/api/ml/match', methods=['POST'])
 def match_programs():
@@ -371,16 +454,6 @@ def match_programs_legacy():
     payload = request.get_json(silent=True) or {}
     scores = program_match_model.predict_probabilities(payload)
     return jsonify({"match_scores": scores}), 200
-
-# --- 6. STARTUP ---
-with app.app_context():
-    init_sentri_db()
-
-if __name__ == "__main__":
-    host = "0.0.0.0"
-    port = 8323
-    CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
-    app.run(debug=True, host=host, port=port, use_reloader=False)
 
 # Add Meeting model
 class Meeting(db.Model):
@@ -417,6 +490,12 @@ def bulk_load_meetings():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Ensure database tables are created
+# --- 6. STARTUP ---
 with app.app_context():
-    db.create_all()
+    init_sentri_db()
+
+if __name__ == "__main__":
+    host = "0.0.0.0"
+    port = 8323
+    CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
+    app.run(debug=True, host=host, port=port, use_reloader=False)
