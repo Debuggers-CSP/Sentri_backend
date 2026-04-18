@@ -5,6 +5,7 @@ from flask import abort, redirect, render_template, request, send_from_directory
 from flask_login import current_user, login_user, logout_user, login_required
 from flask.cli import AppGroup
 from dotenv import load_dotenv
+import json
 import os
 import requests
 import sqlite3
@@ -17,6 +18,18 @@ from db_population_helper import populate_demo_data
 from __init__ import app, db, login_manager
 # Import the User model for the user_loader
 from model.user import User
+
+PROGRAMS = [
+    {"program_id": "aa", "fullName": "Alcoholics Anonymous"},
+    {"program_id": "aca", "fullName": "Adult Children of Alcoholics"},
+    {"program_id": "alateen", "fullName": "Alateen Support Group"},
+    {"program_id": "alanon", "fullName": "Al-Anon Family Groups"},
+    {"program_id": "na", "fullName": "Narcotics Anonymous"},
+    {"program_id": "ca", "fullName": "Cocaine Anonymous"},
+    {"program_id": "ga", "fullName": "Gamblers Anonymous"},
+    {"program_id": "sa", "fullName": "Sexaholics Anonymous"},
+]
+
 
 # --- 1. LOGIN MANAGER CONFIGURATION (Fixes the crash) ---
 @login_manager.user_loader
@@ -43,6 +56,32 @@ def get_sentri_db_connection():
     return conn
 
 
+def _parse_joined_programs(raw_joined_program):
+    if not raw_joined_program:
+        return []
+
+    raw_joined_program = raw_joined_program.strip()
+    if not raw_joined_program:
+        return []
+
+    try:
+        parsed = json.loads(raw_joined_program)
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+    except json.JSONDecodeError:
+        pass
+
+    return [value.strip() for value in raw_joined_program.split(',') if value.strip()]
+
+
+def _get_user_joined_programs(db_conn, user_id):
+    rows = db_conn.execute(
+        'SELECT program_id FROM user_programs WHERE user_id = ? ORDER BY id ASC',
+        (user_id,),
+    ).fetchall()
+    return [row['program_id'] for row in rows]
+
+
 def init_sentri_db():
     db_conn = get_sentri_db_connection()
 
@@ -59,6 +98,16 @@ def init_sentri_db():
         )
     ''')
 
+    # 1b. Create user_programs table for multi-program joins
+    db_conn.execute('''
+        CREATE TABLE IF NOT EXISTS user_programs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            program_id TEXT NOT NULL,
+            UNIQUE(user_id, program_id)
+        )
+    ''')
+
     # 2. Create program_chats table
     db_conn.execute('''
         CREATE TABLE IF NOT EXISTS program_chats (
@@ -67,6 +116,32 @@ def init_sentri_db():
             user_id INTEGER NOT NULL,
             username TEXT NOT NULL,
             message TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # 2b. Create program_reviews table
+    db_conn.execute('''
+        CREATE TABLE IF NOT EXISTS program_reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            program_id TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            rating REAL NOT NULL,
+            comment TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # 2c. Create program_bulletin_notes table
+    db_conn.execute('''
+        CREATE TABLE IF NOT EXISTS program_bulletin_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            program_id TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            message TEXT NOT NULL,
+            color TEXT DEFAULT '#DCFCE7',
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -94,6 +169,15 @@ def init_sentri_db():
             type TEXT
         )
     ''')
+
+    # Migrate existing users.joined_program into user_programs if present
+    user_rows = db_conn.execute('SELECT id, joined_program FROM users').fetchall()
+    for row in user_rows:
+        for program_id in _parse_joined_programs(row['joined_program']):
+            db_conn.execute(
+                'INSERT OR IGNORE INTO user_programs (user_id, program_id) VALUES (?, ?)',
+                (row['id'], program_id),
+            )
 
     db_conn.commit()
     db_conn.close()
@@ -203,13 +287,17 @@ def login():
 
         db_conn = get_sentri_db_connection()
         user_row = db_conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-        db_conn.close()
 
         if user_row and check_password_hash(user_row['password'], password):
             print("\n--- DEBUG STEP 1: BACKEND DB CHECK ---")
             print(f"User found: {user_row['username']}")
             print(f"Fname in DB: {user_row['fname']}")
             print(f"Lname in DB: {user_row['lname']}")
+
+            joined_programs = _get_user_joined_programs(db_conn, user_row['id'])
+            joined_program_value = ','.join(joined_programs) if joined_programs else user_row['joined_program']
+
+            db_conn.close()
 
             # If it's a React request, return JSON
             if request.is_json:
@@ -222,7 +310,7 @@ def login():
                             "email": user_row['email'],
                             "fname": user_row['fname'],
                             "lname": user_row['lname'],
-                            "joined_program": user_row['joined_program'],
+                            "joined_program": joined_program_value,
                         },
                     }
                 ), 200
@@ -232,6 +320,8 @@ def login():
             if user_obj:
                 login_user(user_obj)
                 return redirect(url_for('index'))
+
+        db_conn.close()
 
         if request.is_json:
             return jsonify({"status": "fail"}), 401
@@ -294,6 +384,57 @@ def get_user_meetings():
     return jsonify(meetings_list), 200
 
 
+@app.route('/get-dashboard-summary/<int:user_id>', methods=['GET'])
+def get_dashboard_summary(user_id):
+    db_conn = get_sentri_db_connection()
+
+    programs = []
+    for program in PROGRAMS:
+        last_message_row = db_conn.execute(
+            '''
+            SELECT message, timestamp
+            FROM program_chats
+            WHERE program_id = ?
+            ORDER BY datetime(timestamp) DESC, id DESC
+            LIMIT 1
+            ''',
+            (program['program_id'],),
+        ).fetchone()
+
+        programs.append(
+            {
+                "program_id": program['program_id'],
+                "fullName": program['fullName'],
+                "last_message": {
+                    "text": last_message_row['message'] if last_message_row else "",
+                    "timestamp": last_message_row['timestamp'] if last_message_row else None,
+                },
+            }
+        )
+
+    meetings_rows = db_conn.execute(
+        '''
+        SELECT *
+        FROM user_meetings
+        WHERE user_id = ?
+        ORDER BY datetime(
+            CASE
+                WHEN instr(time, '-') > 0 THEN date || ' ' || TRIM(substr(time, 1, instr(time, '-') - 1))
+                ELSE date || ' ' || time
+            END
+        ) ASC
+        ''',
+        (user_id,),
+    ).fetchall()
+
+    db_conn.close()
+
+    return jsonify({
+        "programs": programs,
+        "meetings": [dict(row) for row in meetings_rows],
+    }), 200
+
+
 @app.route('/logout')
 def logout():
     requests.session.clear()
@@ -341,13 +482,18 @@ def get_user_details():
     user_id = request.args.get('user_id')
     db_conn = get_sentri_db_connection()
     user_row = db_conn.execute(
-        'SELECT username, email, fname, lname, joined_program FROM users WHERE id = ?',
+        'SELECT id, username, email, fname, lname, joined_program FROM users WHERE id = ?',
         (user_id,),
     ).fetchone()
-    db_conn.close()
 
     if user_row:
-        return jsonify(dict(user_row)), 200
+        user_data = dict(user_row)
+        joined_programs = _get_user_joined_programs(db_conn, user_row['id'])
+        user_data['joined_program'] = ','.join(joined_programs) if joined_programs else user_data.get('joined_program')
+        db_conn.close()
+        return jsonify(user_data), 200
+
+    db_conn.close()
     return jsonify({"message": "User not found"}), 404
 
 
@@ -364,22 +510,22 @@ def join_program():
     db_conn = get_sentri_db_connection()
 
     try:
-        # Make sure the joined_program column exists
-        db_conn.execute('ALTER TABLE users ADD COLUMN joined_program TEXT')
-        db_conn.commit()
-    except sqlite3.OperationalError:
-        # Column already exists
-        pass
-
-    try:
-        user_row = db_conn.execute('SELECT id FROM users WHERE id = ?', (user_id,)).fetchone()
+        user_row = db_conn.execute('SELECT id, joined_program FROM users WHERE id = ?', (user_id,)).fetchone()
 
         if not user_row:
             return jsonify({"message": "User not found"}), 404
 
         db_conn.execute(
+            'INSERT OR IGNORE INTO user_programs (user_id, program_id) VALUES (?, ?)',
+            (user_id, program_id),
+        )
+
+        joined_programs = _get_user_joined_programs(db_conn, user_id)
+        joined_program_value = ','.join(joined_programs)
+
+        db_conn.execute(
             'UPDATE users SET joined_program = ? WHERE id = ?',
-            (program_id, user_id),
+            (joined_program_value, user_id),
         )
         db_conn.commit()
 
@@ -387,7 +533,7 @@ def join_program():
             {
                 "status": "success",
                 "message": f"Joined program '{program_id}' successfully",
-                "joined_program": program_id,
+                "joined_program": joined_program_value,
             }
         ), 200
 
@@ -406,31 +552,36 @@ def leave_program():
     user_id = data.get('user_id')
     program_id = data.get('program_id')
 
-    if not user_id:
-        return jsonify({"message": "user_id is required"}), 400
+    if not user_id or not program_id:
+        return jsonify({"message": "user_id and program_id are required"}), 400
 
     db_conn = get_sentri_db_connection()
 
     try:
         user_row = db_conn.execute(
-            'SELECT id, joined_program FROM users WHERE id = ?',
+            'SELECT id FROM users WHERE id = ?',
             (user_id,),
         ).fetchone()
 
         if not user_row:
             return jsonify({"message": "User not found"}), 404
 
-        if program_id and user_row['joined_program'] != program_id:
-            return jsonify({"message": "User is not joined to that program"}), 409
+        db_conn.execute(
+            'DELETE FROM user_programs WHERE user_id = ? AND program_id = ?',
+            (user_id, program_id),
+        )
 
-        db_conn.execute('UPDATE users SET joined_program = NULL WHERE id = ?', (user_id,))
+        joined_programs = _get_user_joined_programs(db_conn, user_id)
+        joined_program_value = ','.join(joined_programs) if joined_programs else None
+
+        db_conn.execute('UPDATE users SET joined_program = ? WHERE id = ?', (joined_program_value, user_id))
         db_conn.commit()
 
         return jsonify(
             {
                 "status": "success",
                 "message": "Left program successfully",
-                "joined_program": None,
+                "joined_program": joined_program_value,
             }
         ), 200
 
@@ -455,6 +606,7 @@ def match_programs_legacy():
     scores = program_match_model.predict_probabilities(payload)
     return jsonify({"match_scores": scores}), 200
 
+
 # Add Meeting model
 class Meeting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -463,6 +615,7 @@ class Meeting(db.Model):
     time = db.Column(db.String(50), nullable=False)
     location = db.Column(db.String(100), nullable=False)
     type = db.Column(db.String(50), nullable=False)
+
 
 # Add bulk-load-meetings route
 @app.route('/bulk-load-meetings', methods=['POST'])
@@ -489,6 +642,7 @@ def bulk_load_meetings():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 # --- 6. STARTUP ---
 with app.app_context():
