@@ -592,6 +592,128 @@ def leave_program():
     finally:
         db_conn.close()
 
+# --- START: NEW BULLETIN BOARD AND REVIEW ROUTES ---
+
+@app.route('/add-program-review', methods=['POST'])
+def add_program_review():
+    data = request.get_json()
+    program_id = data.get('program_id')
+    user_id = data.get('user_id')
+    username = data.get('username')
+    rating = data.get('rating')
+    comment = data.get('comment')
+
+    if not all([program_id, user_id, username, rating is not None, comment]):
+        return jsonify({"message": "Missing required fields"}), 400
+
+    db_conn = get_sentri_db_connection()
+    try:
+        cursor = db_conn.cursor()
+        cursor.execute(
+            '''
+            INSERT INTO program_reviews (program_id, user_id, username, rating, comment)
+            VALUES (?, ?, ?, ?, ?)
+            ''',
+            (program_id, user_id, username, rating, comment)
+        )
+        new_review_id = cursor.lastrowid
+        db_conn.commit()
+
+        new_review_row = db_conn.execute(
+            'SELECT * FROM program_reviews WHERE id = ?',
+            (new_review_id,)
+        ).fetchone()
+        
+        db_conn.close()
+
+        if new_review_row:
+            return jsonify(dict(new_review_row)), 201
+        else:
+            return jsonify({"status": "success", "id": new_review_id}), 201
+
+    except Exception as e:
+        db_conn.close()
+        print(f"DATABASE ERROR (add_program_review): {e}")
+        return jsonify({"message": "Database insertion failed"}), 500
+
+
+@app.route('/get-program-reviews', methods=['GET'])
+def get_program_reviews():
+    program_id = request.args.get('program_id')
+    if not program_id:
+        return jsonify({"message": "program_id is required"}), 400
+
+    db_conn = get_sentri_db_connection()
+    rows = db_conn.execute(
+        'SELECT * FROM program_reviews WHERE program_id = ? ORDER BY timestamp DESC',
+        (program_id,),
+    ).fetchall()
+    db_conn.close()
+
+    reviews_list = [dict(row) for row in rows]
+    return jsonify(reviews_list), 200
+
+
+@app.route('/add-program-bulletin-note', methods=['POST'])
+def add_program_bulletin_note():
+    data = request.get_json()
+    program_id = data.get('program_id')
+    user_id = data.get('user_id')
+    username = data.get('username')
+    message = data.get('message')
+    color = data.get('color', '#fef08a') 
+
+    if not all([program_id, user_id, username, message]):
+        return jsonify({"message": "Missing required fields"}), 400
+
+    db_conn = get_sentri_db_connection()
+    try:
+        cursor = db_conn.cursor()
+        cursor.execute(
+            '''
+            INSERT INTO program_bulletin_notes (program_id, user_id, username, message, color)
+            VALUES (?, ?, ?, ?, ?)
+            ''',
+            (program_id, user_id, username, message, color)
+        )
+        new_note_id = cursor.lastrowid
+        db_conn.commit()
+
+        new_note_row = db_conn.execute(
+            'SELECT * FROM program_bulletin_notes WHERE id = ?',
+            (new_note_id,)
+        ).fetchone()
+        db_conn.close()
+        
+        if new_note_row:
+            return jsonify(dict(new_note_row)), 201
+        else:
+            return jsonify({"status": "success", "id": new_note_id}), 201
+
+    except Exception as e:
+        db_conn.close()
+        print(f"DATABASE ERROR (add_program_bulletin_note): {e}")
+        return jsonify({"message": "Database insertion failed"}), 500
+
+
+@app.route('/get-program-bulletin-notes', methods=['GET'])
+def get_program_bulletin_notes():
+    program_id = request.args.get('program_id')
+    if not program_id:
+        return jsonify({"message": "program_id is required"}), 400
+
+    db_conn = get_sentri_db_connection()
+    rows = db_conn.execute(
+        'SELECT * FROM program_bulletin_notes WHERE program_id = ? ORDER BY timestamp DESC',
+        (program_id,),
+    ).fetchall()
+    db_conn.close()
+
+    notes_list = [dict(row) for row in rows]
+    return jsonify(notes_list), 200
+
+# --- END: NEW BULLETIN BOARD AND REVIEW ROUTES ---
+
 
 @app.route('/api/ml/match', methods=['POST'])
 def match_programs():
